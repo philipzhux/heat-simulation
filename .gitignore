@@ -1,0 +1,3 @@
+**/hs_*
+**/*.ini
+**/cmake_build
