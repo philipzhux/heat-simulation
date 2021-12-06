@@ -23,7 +23,7 @@ int main(int argc, char **argv) {
     int c;
     int gui_flag = 0;
     int iter_u = 1000;
-    int set_size = 100;
+    int set_size = 300;
     int set_stemp = 100;
     int set_btemp = 36;
     opterr = 0;
@@ -71,6 +71,10 @@ const int & set_stemp, const int & set_btemp) {
     static const char* algo_list[2] = { "jacobi", "sor" };
     current_state.room_size = set_size;
     last_state.room_size = set_size;
+    current_state.source_x = set_size/2;
+    current_state.source_y = set_size/2;
+    last_state.source_x = set_size/2;
+    last_state.source_y = set_size/2;
     current_state.source_temp = set_stemp;
     last_state.source_temp = set_stemp;
     current_state.border_temp = set_btemp;

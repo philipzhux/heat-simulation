@@ -20,7 +20,7 @@ int main(int argc, char **argv) {
     int c;
     int gui_flag = 0;
     int iter_u = 1000;
-    int set_size = 100;
+    int set_size = 300;
     int set_stemp = 100;
     int set_btemp = 36;
     int set_tnum = 4;
@@ -105,7 +105,7 @@ int main(int argc, char **argv) {
             ImGui::DragInt("Source X", &current_state.source_x, 1, 1, current_state.room_size - 2, "%d");
             ImGui::DragInt("Source Y", &current_state.source_y, 1, 1, current_state.room_size - 2, "%d");
             ImGui::DragFloat("Tolerance", &current_state.tolerance, 0.01, 0.01, 1, "%f");
-            ImGui::ListBox("Algorithm", reinterpret_cast<int *>(&current_state.algo), algo_list, 2);
+            //ImGui::ListBox("Algorithm", reinterpret_cast<int *>(&current_state.algo), algo_list, 2);
 
             if (current_state.algo == hdist::Algorithm::Sor) {
                 ImGui::DragFloat("Sor Constant", &current_state.sor_constant, 0.01, 0.0, 20.0, "%f");
