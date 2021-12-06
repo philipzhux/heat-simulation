@@ -88,7 +88,7 @@ int main(int argc, char **argv) {
                 d0_d, d1_d);
                 fetch_data(current_state.room_size, grid.data0.data(), grid.data1.data(), d0_d, d1_d);
                 if (current_state.algo!=hdist::Algorithm::Sor) grid.switch_buffer();
-                printf("temp at 50,50 = %f\n",grid[{50, 50}]);
+                //printf("temp at 50,50 = %f\n",grid[{50, 50}]);
                 if (finished) end = std::chrono::high_resolution_clock::now();
             } else {
                 if(iter>=iter_u) {printf("iteration finished in %ld ns\n", std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin).count());}
@@ -158,7 +158,7 @@ int main(int argc, char **argv) {
                 d0_d, d1_d);
                 fetch_data(current_state.room_size, grid.data0.data(), grid.data1.data(), d0_d, d1_d);
                 if (current_state.algo!=hdist::Algorithm::Sor) grid.switch_buffer();
-                printf("temp at 50,50 = %f\n",grid[{50, 50}]);
+                //printf("temp at 50,50 = %f\n",grid[{50, 50}]);
                 if (finished) end = std::chrono::high_resolution_clock::now();
             } else {
                 if(iter>=iter_u) {ImGui::Text("iteration finished in %ld ns\n", std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin).count());}
