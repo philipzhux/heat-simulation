@@ -96,7 +96,7 @@ namespace hdist {
         void switch_buffer() {
             double* recv_buf = data0.data();
             double* send_buf = data1.data()+displs[rank];
-            MPI_Allgatherv(send_buf, recvcounts[rank], MPI_DOUBLE, recv_buf, recvcounts, displs, MPI_DOUBLE, MPI_COMM_WORLD);
+            
         }
     };
 

@@ -55,6 +55,10 @@ int main(int argc, char **argv) {
     static const char* algo_list[2] = { "jacobi", "sor" };
     current_state.room_size = set_size;
     last_state.room_size = set_size;
+    current_state.source_x = set_size/2;
+    current_state.source_y = set_size/2;
+    last_state.source_x = set_size/2;
+    last_state.source_y = set_size/2;
     current_state.source_temp = set_stemp;
     last_state.source_temp = set_stemp;
     current_state.border_temp = set_btemp;
@@ -89,7 +93,7 @@ int main(int argc, char **argv) {
                 fetch_data(current_state.room_size, grid.data0.data(), grid.data1.data(), d0_d, d1_d);
                 // grid.switch_buffer();
                 // if (current_state.algo==hdist::Algorithm::Sor) grid.switch_buffer();
-                printf("temp at 140,160 = %f\n",grid[{140, 160}]);
+                printf("temp at 155,155 = %f\n",grid[{155, 155}]);
                 if (finished) end = std::chrono::high_resolution_clock::now();
             } else {
                 if(iter>=iter_u) {printf("iteration finished in %ld ns\n", std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin).count());}
@@ -123,7 +127,7 @@ int main(int argc, char **argv) {
             ImGui::DragInt("Source X", &current_state.source_x, 1, 1, current_state.room_size - 2, "%d");
             ImGui::DragInt("Source Y", &current_state.source_y, 1, 1, current_state.room_size - 2, "%d");
             ImGui::DragFloat("Tolerance", &current_state.tolerance, 0.01, 0.01, 1, "%f");
-            ImGui::ListBox("Algorithm", reinterpret_cast<int *>(&current_state.algo), algo_list, 2);
+            //ImGui::ListBox("Algorithm", reinterpret_cast<int *>(&current_state.algo), algo_list, 2);
             if (current_state.algo == hdist::Algorithm::Sor) {
                 ImGui::DragFloat("Sor Constant", &current_state.sor_constant, 0.01, 0.0, 20.0, "%f");
             }
