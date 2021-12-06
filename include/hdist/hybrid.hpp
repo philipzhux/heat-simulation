@@ -1,8 +1,9 @@
 #pragma once
 
 #include <vector>
+#include <mpi.h>
 #include <cmath>
-
+#include <omp.h>
 namespace hdist {
 
     enum class Algorithm : int {
@@ -23,28 +24,38 @@ namespace hdist {
 
         bool operator==(const State &that) const = default;
     };
-
+    
     struct Alt {
     };
 
     constexpr static inline Alt alt{};
-    struct UpdateResult {
-        bool stable;
-        double temp;
-    };
 
-    
     struct Grid {
         std::vector<double> data0, data1;
         size_t current_buffer = 0;
+        int my_start = 0;
         size_t length;
-
+        int rank,proc;
+        int* recvcounts;
+        int* displs;
         explicit Grid(size_t size,
                       double border_temp,
                       double source_temp,
                       size_t x,
-                      size_t y)
-                : data0(size * size), data1(size * size), length(size) {
+                      size_t y, int proc, int rank)
+                : data0(size * size), data1(size * size), length(size), rank(rank), proc(proc) {
+            recvcounts = new int[proc];
+            displs = new int[proc];
+            int count  = 0;
+            recvcounts[0] = getLength(length,proc,0)*length;
+            displs[0] = 0;
+            if(rank) my_start += getLength(length,proc, 0);
+            for(int i=1;i<proc;i++){
+                count += recvcounts[i-1];
+                recvcounts[i] = getLength(length,proc,i)*length;
+                displs[i] = count;
+                if(i<rank) my_start += getLength(length,proc,i);
+            }
             for (size_t i = 0; i < length; ++i) {
                 for (size_t j = 0; j < length; ++j) {
                     if (i == 0 || j == 0 || i == length - 1 || j == length - 1) {
@@ -57,10 +68,21 @@ namespace hdist {
                 }
             }
         }
-        
+        int get_rank() {
+            return rank;
+        }
+        int get_start() {
+            return  my_start;
+        }
+        int get_length() {
+            return getLength(length, proc,rank);
+        }
+        static inline int getLength(int total, int proc,int r) {
+            if(total<proc) return r<total;
+            return (total-r)/proc + ((total-r)%proc > 0);
+        }
         std::vector<double> &get_current_buffer() {
-            if (current_buffer == 0) return data0;
-            return data1;
+            return data0;
         }
 
         double &operator[](std::pair<size_t, size_t> index) {
@@ -68,16 +90,21 @@ namespace hdist {
         }
 
         double &operator[](std::tuple<Alt, size_t, size_t> index) {
-            return current_buffer == 1 ? data0[std::get<1>(index) * length + std::get<2>(index)] : data1[
-                    std::get<1>(index) * length + std::get<2>(index)];
+            return data1[std::get<1>(index) * length + std::get<2>(index)];
         }
 
         void switch_buffer() {
-            current_buffer = !current_buffer;
+            double* recv_buf = data0.data();
+            double* send_buf = data1.data()+displs[rank];
+            MPI_Allgatherv(send_buf, recvcounts[rank], MPI_DOUBLE, recv_buf, recvcounts, displs, MPI_DOUBLE, MPI_COMM_WORLD);
         }
     };
 
-    
+    struct UpdateResult {
+        int stable;
+        double temp;
+    };
+
     UpdateResult update_single(size_t i, size_t j, Grid &grid, const State &state) {
         UpdateResult result{};
         if (i == 0 || j == 0 || i == state.room_size - 1 || j == state.room_size - 1) {
@@ -99,12 +126,15 @@ namespace hdist {
         return result;
     }
 
-    bool calculate(const State &state, Grid &grid) {
-        bool stabilized = true;
-
+    int calculate(const State &state, Grid &grid) {
+        int stabilized = true;
+        size_t my_start = grid.get_start();
+        size_t my_length = grid.get_length();
+        omp_set_num_threads(omp_get_max_threads());
         switch (state.algo) {
             case Algorithm::Jacobi:
-                for (size_t i = 0; i < state.room_size; ++i) {
+                #pragma omp parallel for default(shared)
+                for (size_t i = my_start; i < my_start+my_length; ++i) {
                     for (size_t j = 0; j < state.room_size; ++j) {
                         auto result = update_single(i, j, grid, state);
                         stabilized &= result.stable;
@@ -115,7 +145,8 @@ namespace hdist {
                 break;
             case Algorithm::Sor:
                 for (auto k : {0, 1}) {
-                    for (size_t i = 0; i < state.room_size; i++) {
+                    #pragma omp parallel for default(shared)
+                    for (size_t i = my_start; i < my_start+my_length; ++i) {
                         for (size_t j = 0; j < state.room_size; j++) {
                             if (k == ((i + j) & 1)) {
                                 auto result = update_single(i, j, grid, state);
@@ -135,11 +166,14 @@ namespace hdist {
 
 } // namespace hdist
 
-void host_cal(int x, int y, int room_size, int source_x, int source_y, 
-    float source_temp, float border_temp, float tolerance, float sorc, int algo, 
-    double *d0_d, double *d1_d);
-void clean_alloc(double* d0, double* d1);
-void alloc_init(int size, double *d0, double *d1, double **d0_d, double **d1_d);
-void fetch_data(int size, double *d0, double *d1, double *d0_d, double *d1_d);
 
 
+
+void gui(hdist::State& current_state, hdist::State& last_state,
+            std::chrono::high_resolution_clock::time_point& begin,
+            std::chrono::high_resolution_clock::time_point& end,
+            const char *const * algo_list, int& first, int& finished,
+            hdist::Grid& grid, const int & proc, const int & rank, const int & iter_u);
+
+void do_it(const int & proc, const int & rank, const int & gui_flag, const int & iter_u, const int & set_size,
+const int & set_stemp, const int & set_btemp);

@@ -1,7 +1,7 @@
 #pragma once
-
+#include <omp.h>
 #include <vector>
-
+#include <cmath>
 namespace hdist {
 
     enum class Algorithm : int {
@@ -97,11 +97,12 @@ namespace hdist {
         return result;
     }
 
-    bool calculate(const State &state, Grid &grid) {
+    bool calculate(const State &state, Grid &grid, int thread_num) {
         bool stabilized = true;
 
         switch (state.algo) {
             case Algorithm::Jacobi:
+                #pragma omp parallel for num_threads(thread_num)
                 for (size_t i = 0; i < state.room_size; ++i) {
                     for (size_t j = 0; j < state.room_size; ++j) {
                         auto result = update_single(i, j, grid, state);
@@ -113,6 +114,7 @@ namespace hdist {
                 break;
             case Algorithm::Sor:
                 for (auto k : {0, 1}) {
+                    #pragma omp parallel for num_threads(thread_num)
                     for (size_t i = 0; i < state.room_size; i++) {
                         for (size_t j = 0; j < state.room_size; j++) {
                             if (k == ((i + j) & 1)) {

@@ -21,8 +21,10 @@ int main(int argc, char **argv) {
     int set_size = 100;
     int set_stemp = 100;
     int set_btemp = 36;
+    int x = 4;
+    int y = 32;
     opterr = 0;
-    while ((c = getopt (argc, argv, "gi:s:t:b:")) != -1){
+    while ((c = getopt (argc, argv, "gi:s:x:y:")) != -1){
         switch (c)
         {
             case 'g':
@@ -34,11 +36,11 @@ int main(int argc, char **argv) {
             case 's':
                 set_size = atoi(optarg);
                 break;
-            case 't':
-                set_stemp = atoi(optarg);
+            case 'x':
+                x = atoi(optarg);
                 break;
-            case 'b':
-                set_btemp = atoi(optarg);
+            case 'y':
+                y = atoi(optarg);
                 break;
             case '?':
                 break;
@@ -67,10 +69,14 @@ int main(int argc, char **argv) {
     double *d0_d, *d1_d;
     if(!gui_flag){
         while(1){
+            static int curr_buf = 0;
+            static int k = 0;
             if (first) {
                 first = false;
                 finished = false;
-                alloc_init(current_state.room_size, grid.data0.data(), grid.data1.data(), &d0_d, &d0_d);
+                curr_buf = 0;
+                k = 0;
+                alloc_init(current_state.room_size, grid.data0.data(), grid.data1.data(), &d0_d, &d1_d);
                 begin = std::chrono::high_resolution_clock::now();
             }
 
@@ -78,8 +84,8 @@ int main(int argc, char **argv) {
                 //finished = hdist::calculate(current_state, grid) || iter++ == iter_u;
                 finished = iter++ == iter_u;
                 host_cal(x, y, current_state.room_size, current_state.source_x, current_state.source_y, 
-                current_state.source_temp, current_state.border_temp, current_state.tolerance, current_state.sor_constant, current_state.algo, 
-                d0_d, d1_d, curr_buf);
+                current_state.source_temp, current_state.border_temp, current_state.tolerance, current_state.sor_constant, static_cast<int>(current_state.algo), 
+                d0_d, d1_d);
                 fetch_data(current_state.room_size, grid.data0.data(), grid.data1.data(), d0_d, d1_d);
                 if (finished) end = std::chrono::high_resolution_clock::now();
             } else {
@@ -115,6 +121,7 @@ int main(int argc, char **argv) {
             ImGui::DragFloat("Tolerance", &current_state.tolerance, 0.01, 0.01, 1, "%f");
             ImGui::ListBox("Algorithm", reinterpret_cast<int *>(&current_state.algo), algo_list, 2);
             static int curr_buf = 0;
+            static int k = 0;
             if (current_state.algo == hdist::Algorithm::Sor) {
                 ImGui::DragFloat("Sor Constant", &current_state.sor_constant, 0.01, 0.0, 20.0, "%f");
             }
@@ -145,8 +152,8 @@ int main(int argc, char **argv) {
             if (!finished) {
                 //finished = hdist::calculate(current_state, grid) || iter++ == iter_u;
                 host_cal(x, y, current_state.room_size, current_state.source_x, current_state.source_y, 
-                current_state.source_temp, current_state.border_temp, current_state.tolerance, current_state.sor_constant, current_state.algo, 
-                d0_d, d1_d, curr_buf);
+                current_state.source_temp, current_state.border_temp, current_state.tolerance, current_state.sor_constant, static_cast<int>(current_state.algo), 
+                d0_d, d1_d);
                 fetch_data(current_state.room_size, grid.data0.data(), grid.data1.data(), d0_d, d1_d);
                 if (finished) end = std::chrono::high_resolution_clock::now();
             } else {
