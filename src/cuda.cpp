@@ -5,9 +5,7 @@
 #include <cmath>
 #include <stdlib.h>
 #include <unistd.h>
-#include <pthread.h>
-#include <hdist/pthread.hpp>
-
+#include <hdist/cuda_host.hpp>
 template<typename ...Args>
 void UNUSED(Args &&... args [[maybe_unused]]) {}
 
@@ -23,9 +21,8 @@ int main(int argc, char **argv) {
     int set_size = 100;
     int set_stemp = 100;
     int set_btemp = 36;
-    int set_tnum = 4;
     opterr = 0;
-    while ((c = getopt (argc, argv, "gi:s:t:")) != -1){
+    while ((c = getopt (argc, argv, "gi:s:t:b:")) != -1){
         switch (c)
         {
             case 'g':
@@ -38,7 +35,10 @@ int main(int argc, char **argv) {
                 set_size = atoi(optarg);
                 break;
             case 't':
-                set_tnum = atoi(optarg);
+                set_stemp = atoi(optarg);
+                break;
+            case 'b':
+                set_btemp = atoi(optarg);
                 break;
             case '?':
                 break;
@@ -64,20 +64,28 @@ int main(int argc, char **argv) {
             static_cast<size_t>(current_state.source_x),
             static_cast<size_t>(current_state.source_y)};
     static int iter = 0;
+    double *d0_d, *d1_d;
     if(!gui_flag){
         while(1){
             if (first) {
                 first = false;
                 finished = false;
+                alloc_init(current_state.room_size, grid.data0.data(), grid.data1.data(), &d0_d, &d0_d);
                 begin = std::chrono::high_resolution_clock::now();
             }
 
             if (!finished) {
-                finished = hdist::calculate(current_state, grid, set_tnum) || iter++ == iter_u;
+                //finished = hdist::calculate(current_state, grid) || iter++ == iter_u;
+                finished = iter++ == iter_u;
+                host_cal(x, y, current_state.room_size, current_state.source_x, current_state.source_y, 
+                current_state.source_temp, current_state.border_temp, current_state.tolerance, current_state.sor_constant, current_state.algo, 
+                d0_d, d1_d, curr_buf);
+                fetch_data(current_state.room_size, grid.data0.data(), grid.data1.data(), d0_d, d1_d);
                 if (finished) end = std::chrono::high_resolution_clock::now();
             } else {
                 if(iter>=iter_u) {printf("iteration finished in %ld ns\n", std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin).count());}
                 else printf("stabilized in %ld ns\n", std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin).count());
+                clean_alloc(d0_d, d1_d);
                 break;
             }
         }
@@ -106,7 +114,7 @@ int main(int argc, char **argv) {
             ImGui::DragInt("Source Y", &current_state.source_y, 1, 1, current_state.room_size - 2, "%d");
             ImGui::DragFloat("Tolerance", &current_state.tolerance, 0.01, 0.01, 1, "%f");
             ImGui::ListBox("Algorithm", reinterpret_cast<int *>(&current_state.algo), algo_list, 2);
-
+            static int curr_buf = 0;
             if (current_state.algo == hdist::Algorithm::Sor) {
                 ImGui::DragFloat("Sor Constant", &current_state.sor_constant, 0.01, 0.0, 20.0, "%f");
             }
@@ -124,20 +132,27 @@ int main(int argc, char **argv) {
             if (current_state != last_state) {
                 last_state = current_state;
                 finished = false;
+                clean_alloc(d0_d, d1_d);
             }
 
             if (first) {
                 first = false;
                 finished = false;
+                alloc_init(current_state.room_size, grid.data0.data(), grid.data1.data(), &d0_d, &d1_d);
                 begin = std::chrono::high_resolution_clock::now();
             }
 
             if (!finished) {
-                finished = hdist::calculate(current_state, grid, set_tnum) || iter++ == iter_u;
+                //finished = hdist::calculate(current_state, grid) || iter++ == iter_u;
+                host_cal(x, y, current_state.room_size, current_state.source_x, current_state.source_y, 
+                current_state.source_temp, current_state.border_temp, current_state.tolerance, current_state.sor_constant, current_state.algo, 
+                d0_d, d1_d, curr_buf);
+                fetch_data(current_state.room_size, grid.data0.data(), grid.data1.data(), d0_d, d1_d);
                 if (finished) end = std::chrono::high_resolution_clock::now();
             } else {
                 if(iter>=iter_u) {ImGui::Text("iteration finished in %ld ns\n", std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin).count());}
                 else ImGui::Text("stabilized in %ld ns\n", std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin).count());
+                clean_alloc(d0_d, d1_d);
             }
 
             const ImVec2 p = ImGui::GetCursorScreenPos();

@@ -24,7 +24,7 @@ namespace hdist {
 
         bool operator==(const State &that) const = default;
     };
-
+    
     struct Alt {
     };
 
@@ -101,7 +101,7 @@ namespace hdist {
     };
 
     struct UpdateResult {
-        bool stable;
+        int stable;
         double temp;
     };
 
@@ -126,8 +126,8 @@ namespace hdist {
         return result;
     }
 
-    bool calculate(const State &state, Grid &grid) {
-        bool stabilized = true;
+    int calculate(const State &state, Grid &grid) {
+        int stabilized = true;
         size_t my_start = grid.get_start();
         size_t my_length = grid.get_length();
         switch (state.algo) {
@@ -169,8 +169,8 @@ namespace hdist {
 void gui(hdist::State& current_state, hdist::State& last_state,
             std::chrono::high_resolution_clock::time_point& begin,
             std::chrono::high_resolution_clock::time_point& end,
-            const char *const * algo_list, bool& first, bool& finished,
-            hdist::Grid& grid, const int & proc, const int & rank);
+            const char *const * algo_list, int& first, int& finished,
+            hdist::Grid& grid, const int & proc, const int & rank, const int & iter_u);
 
-
-void do_it(const int & proc, const int & rank, const int & gui_flag);
+void do_it(const int & proc, const int & rank, const int & gui_flag, const int & iter_u, const int & set_size,
+const int & set_stemp, const int & set_btemp);

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <vector>
+#include <cmath>
 
 namespace hdist {
 
@@ -27,7 +28,12 @@ namespace hdist {
     };
 
     constexpr static inline Alt alt{};
+    struct UpdateResult {
+        bool stable;
+        double temp;
+    };
 
+    
     struct Grid {
         std::vector<double> data0, data1;
         size_t current_buffer = 0;
@@ -51,7 +57,7 @@ namespace hdist {
                 }
             }
         }
-
+        
         std::vector<double> &get_current_buffer() {
             if (current_buffer == 0) return data0;
             return data1;
@@ -71,11 +77,7 @@ namespace hdist {
         }
     };
 
-    struct UpdateResult {
-        bool stable;
-        double temp;
-    };
-
+    
     UpdateResult update_single(size_t i, size_t j, Grid &grid, const State &state) {
         UpdateResult result{};
         if (i == 0 || j == 0 || i == state.room_size - 1 || j == state.room_size - 1) {
@@ -132,3 +134,7 @@ namespace hdist {
 
 
 } // namespace hdist
+
+void send_data(int room_size, double *d0, double *d1, double **d0_d, double **d1_d);
+void fetch_data(int room_size, double *data0, double *data1, double *data0_d, double *data1_d);
+void master_cal(int room_size, float block_size, int source_x, int source_y, float source_temp, float border_temp, float tolerance, float sor_constant, int algo, double *data0_d, double *data1_d, int nElem);

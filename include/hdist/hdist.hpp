@@ -28,7 +28,12 @@ namespace hdist {
     };
 
     constexpr static inline Alt alt{};
+    struct UpdateResult {
+        bool stable;
+        double temp;
+    };
 
+    
     struct Grid {
         std::vector<double> data0, data1;
         size_t current_buffer = 0;
@@ -52,7 +57,7 @@ namespace hdist {
                 }
             }
         }
-
+        
         std::vector<double> &get_current_buffer() {
             if (current_buffer == 0) return data0;
             return data1;
@@ -72,11 +77,7 @@ namespace hdist {
         }
     };
 
-    struct UpdateResult {
-        bool stable;
-        double temp;
-    };
-
+    
     UpdateResult update_single(size_t i, size_t j, Grid &grid, const State &state) {
         UpdateResult result{};
         if (i == 0 || j == 0 || i == state.room_size - 1 || j == state.room_size - 1) {

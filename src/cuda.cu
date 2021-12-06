@@ -1,97 +1,113 @@
-#include <graphic/graphic.hpp>
-#include <imgui_impl_sdl.h>
-#include <cstring>
-#include <chrono>
-#include <hdist/hdist.hpp>
-#include <cmath>
+enum class Algo : int {
+    Jacobi = 0,
+    Sor = 1
+};
 
-template<typename ...Args>
-void UNUSED(Args &&... args [[maybe_unused]]) {}
+struct DGrid
+{
+    int room_size;
+    int source_x;
+    int source_y;
+    float source_temp;
+    float border_temp;
+    float tolerance;
+    float sorc;
+    int algo;
+    double *d0;
+    double *d1;
+    int k;
+    int curr_buf;
+    __device__ __host__ DGrid(int room_size, int source_x, int source_y, float source_temp,
+         float border_temp, float tolerance, float sorc, int algo, double *d0, double *d1, int k,
+        int curr_buf):
+        room_size{room_size},source_x{source_x},source_y{source_y},source_temp{source_temp},
+        border_temp{border_temp},tolerance{tolerance},sorc{sorc},algo{algo},d0{d0},d1{d1},k{k},curr_buff{curr_buff} {
 
-ImColor temp_to_color(double temp) {
-    auto value = static_cast<uint8_t>(temp / 100.0 * 255.0);
-    return {value, 0, 255 - value};
-}
-
-int main(int argc, char **argv) {
-    UNUSED(argc, argv);
-    bool first = true;
-    bool finished = false;
-    static hdist::State current_state, last_state;
-    static std::chrono::high_resolution_clock::time_point begin, end;
-    static const char* algo_list[2] = { "jacobi", "sor" };
-    graphic::GraphicContext context{"Assignment 4"};
-    auto grid = hdist::Grid{
-            static_cast<size_t>(current_state.room_size),
-            current_state.border_temp,
-            current_state.source_temp,
-            static_cast<size_t>(current_state.source_x),
-            static_cast<size_t>(current_state.source_y)};
-    context.run([&](graphic::GraphicContext *context [[maybe_unused]], SDL_Window *) {
-        auto io = ImGui::GetIO();
-        ImGui::SetNextWindowPos(ImVec2(0.0f, 0.0f));
-        ImGui::SetNextWindowSize(io.DisplaySize);
-        ImGui::Begin("Assignment 4", nullptr,
-                     ImGuiWindowFlags_NoMove
-                     | ImGuiWindowFlags_NoCollapse
-                     | ImGuiWindowFlags_NoTitleBar
-                     | ImGuiWindowFlags_NoResize);
-        ImDrawList *draw_list = ImGui::GetWindowDrawList();
-        ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate,
-                    ImGui::GetIO().Framerate);
-        ImGui::DragInt("Room Size", &current_state.room_size, 10, 200, 1600, "%d");
-        ImGui::DragFloat("Block Size", &current_state.block_size, 0.01, 0.1, 10, "%f");
-        ImGui::DragFloat("Source Temp", &current_state.source_temp, 0.1, 0, 100, "%f");
-        ImGui::DragFloat("Border Temp", &current_state.border_temp, 0.1, 0, 100, "%f");
-        ImGui::DragInt("Source X", &current_state.source_x, 1, 1, current_state.room_size - 2, "%d");
-        ImGui::DragInt("Source Y", &current_state.source_y, 1, 1, current_state.room_size - 2, "%d");
-        ImGui::DragFloat("Tolerance", &current_state.tolerance, 0.01, 0.01, 1, "%f");
-        ImGui::ListBox("Algorithm", reinterpret_cast<int *>(&current_state.algo), algo_list, 2);
-
-        if (current_state.algo == hdist::Algorithm::Sor) {
-            ImGui::DragFloat("Sor Constant", &current_state.sor_constant, 0.01, 0.0, 20.0, "%f");
-        }
-
-        if (current_state.room_size != last_state.room_size) { // not yet converge
-            grid = hdist::Grid{
-                    static_cast<size_t>(current_state.room_size),
-                    current_state.border_temp,
-                    current_state.source_temp,
-                    static_cast<size_t>(current_state.source_x),
-                    static_cast<size_t>(current_state.source_y)};
-            first = true;
-        }
-
-        if (current_state != last_state) {
-            last_state = current_state;
-            finished = false;
-        }
-
-        if (first) {
-            first = false;
-            finished = false;
-            begin = std::chrono::high_resolution_clock::now();
-        }
-
-        if (!finished) {
-            finished = hdist::calculate(current_state, grid);
-            if (finished) end = std::chrono::high_resolution_clock::now();
+     }
+    
+     __device__ __host__ DGrid(const DGrid &grid) : room_size{grid.room_size},source_x{grid.source_x},source_y{grid.source_y},source_temp{grid.source_temp},
+     border_temp{grid.border_temp},tolerance{grid.tolerance},sorc{grid.sorc},algo{grid.algo},d0{grid.d0},d1{grid.d1},k{grid.k},curr_buff{grid.curr_buff} {}
+    __device__ double get_copy(size_t i, size_t j) {
+        if (current_buffer) return data1[i * room_size + j];
+        else return data0[i * room_size + j];
+    }
+    __device__ void update_alt(size_t i, size_t j, double temp) {
+        if (current_buffer) d0[i * room_size + j] = temp;
+        else d1[i * room_size + j] = temp;
+    }
+    __device__ void update_single(size_t i, size_t j) {
+        double temp;
+        if (i == 0 || j == 0 || i == room_size - 1 || j == room_size - 1) {
+            temp = border_temp;
+        } else if (i == source_x && j == source_y) {
+            temp = source_temp;
         } else {
-            ImGui::Text("stabilized in %ld ns", std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin).count());
+            auto sum = get_copy(i+1,j) + get_copy(i-1,j) + get_copy(i,j+1)+ get_copy(i,j-1);
+            switch (algo) {
+                case Algo::Jacobi:
+                    temp = 0.25 * sum;
+                    update_alt(i,j,temp);
+                    break;
+                case Algo::Sor:
+                    if (k == ((i + j) & 1)){
+                        temp = get_copy(i,j) + (1.0 / sor_constant) * (sum - 4.0 * get_copy(i,j));
+                        update_alt(i,j,temp);
+                    }
+                    else {
+                        update_alt(i,j,get_copy(i,j));
+                    }
+                    break;
+            }
+        }
+    }
+    
+};
+void alloc_init(int size, double *d0, double *d1, double **d0_d, double **d1_d){
+    cudaMalloc((void**)d0_d, sizeof(double) * size * size);
+    cudaMalloc((void**)d1_d, sizeof(double) * size * size);
+    cudaMemcpy(*d0_d, d0, sizeof(double) * size * size, cudaMemcpyHostToDevice);
+    cudaMemcpy(*d1_d, d1, sizeof(double) * size * size, cudaMemcpyHostToDevice);
+}
+
+void fetch_data(int size, double *d0, double *d1, double *d0_d, double *d1_d){
+    cudaMemcpy(d0, d0_d, sizeof(double) * size * size, cudaMemcpyDeviceToHost);
+    cudaMemcpy(d1, d1_d, sizeof(double) * size * size, cudaMemcpyDeviceToHost);
+}
+
+
+__global__
+void dev_cal(DGrid grid) {
+
+    int index = blockIdx.x * blockDim.x + threadIdx.x;
+    int stride = blockDim.x * gridDim.x;
+    for (size_t i = index; i < grid.room_size; i+=stride) {
+        for (size_t j = 0; j < grid.room_size; ++j) {
+            grid.update_single(i, j);
+        }
+    }
+    
+}
+
+void clean_alloc(double* d0, double* d1){
+    cudaFree(d0);
+    cudaFree(d1);
+}
+
+void host_cal(int x, int y, int room_size, int source_x, int source_y, 
+    float source_temp, float border_temp, float tolerance, float sorc, int algo, 
+    double *d0_d, double *d1_d, int& curr_buf){
+        if(!algo){
+            dev_cal<<<x, y>>>({room_size, source_x, source_y, source_temp, border_temp,
+                tolerance, sorc, algo, d0_d, d1_d, k, curr_buf});
+           curr_buf = !curr_buf;
+        }
+        else{
+            dev_cal<<<x, y>>>({room_size, source_x, source_y, source_temp, border_temp,
+                tolerance, sorc, algo, d0_d, d1_d, k, curr_buf});
+           
+            dev_cal<<<x, y>>>({room_size, source_x, source_y, source_temp, border_temp,
+                    tolerance, sorc, algo, d0_d, d1_d, !k, !curr_buf});
         }
 
-        const ImVec2 p = ImGui::GetCursorScreenPos();
-        float x = p.x + current_state.block_size, y = p.y + current_state.block_size;
-        for (size_t i = 0; i < current_state.room_size; ++i) {
-            for (size_t j = 0; j < current_state.room_size; ++j) {
-                auto temp = grid[{i, j}];
-                auto color = temp_to_color(temp);
-                draw_list->AddRectFilled(ImVec2(x, y), ImVec2(x + current_state.block_size, y + current_state.block_size), color);
-                y += current_state.block_size;
-            }
-            x += current_state.block_size;
-            y = p.y + current_state.block_size;
-        }
-        ImGui::End();
-    });
-}
+
+    }
