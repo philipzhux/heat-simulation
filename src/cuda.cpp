@@ -18,7 +18,7 @@ int main(int argc, char **argv) {
     int c;
     int gui_flag = 0;
     int iter_u = 1000;
-    int set_size = 100;
+    int set_size = 300;
     int set_stemp = 100;
     int set_btemp = 36;
     int x = 4;
@@ -87,8 +87,9 @@ int main(int argc, char **argv) {
                 current_state.source_temp, current_state.border_temp, current_state.tolerance, current_state.sor_constant, static_cast<int>(current_state.algo), 
                 d0_d, d1_d);
                 fetch_data(current_state.room_size, grid.data0.data(), grid.data1.data(), d0_d, d1_d);
-                if (current_state.algo!=hdist::Algorithm::Sor) grid.switch_buffer();
-                //printf("temp at 50,50 = %f\n",grid[{50, 50}]);
+                // grid.switch_buffer();
+                // if (current_state.algo==hdist::Algorithm::Sor) grid.switch_buffer();
+                printf("temp at 140,160 = %f\n",grid[{140, 160}]);
                 if (finished) end = std::chrono::high_resolution_clock::now();
             } else {
                 if(iter>=iter_u) {printf("iteration finished in %ld ns\n", std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin).count());}
@@ -101,6 +102,7 @@ int main(int argc, char **argv) {
     }
     else
     {
+        first = true;
         graphic::GraphicContext context{"Sequential"};
         context.run([&](graphic::GraphicContext *context [[maybe_unused]], SDL_Window *) {
             auto io = ImGui::GetIO();
@@ -122,8 +124,6 @@ int main(int argc, char **argv) {
             ImGui::DragInt("Source Y", &current_state.source_y, 1, 1, current_state.room_size - 2, "%d");
             ImGui::DragFloat("Tolerance", &current_state.tolerance, 0.01, 0.01, 1, "%f");
             ImGui::ListBox("Algorithm", reinterpret_cast<int *>(&current_state.algo), algo_list, 2);
-            static int curr_buf = 0;
-            static int k = 0;
             if (current_state.algo == hdist::Algorithm::Sor) {
                 ImGui::DragFloat("Sor Constant", &current_state.sor_constant, 0.01, 0.0, 20.0, "%f");
             }
@@ -157,8 +157,9 @@ int main(int argc, char **argv) {
                 current_state.source_temp, current_state.border_temp, current_state.tolerance, current_state.sor_constant, static_cast<int>(current_state.algo), 
                 d0_d, d1_d);
                 fetch_data(current_state.room_size, grid.data0.data(), grid.data1.data(), d0_d, d1_d);
-                if (current_state.algo!=hdist::Algorithm::Sor) grid.switch_buffer();
-                //printf("temp at 50,50 = %f\n",grid[{50, 50}]);
+                // grid.switch_buffer();
+                // if (current_state.algo==hdist::Algorithm::Sor) grid.switch_buffer();
+                //printf("temp at 140,160 = %f\n",grid[{50, 50}]);
                 if (finished) end = std::chrono::high_resolution_clock::now();
             } else {
                 if(iter>=iter_u) {ImGui::Text("iteration finished in %ld ns\n", std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin).count());}
